@@ -224,6 +224,38 @@ static void step(Fluid3D *f) {
     advect_scalar(f, f->density, f->density0);
 }
 
+
+static void write_vtk(const Fluid3D *f, const char *filename) {
+    FILE *fp = fopen(filename, "w");
+    if (!fp) {
+        fprintf(stderr, "Cannot open %s for writing\n", filename);
+        return;
+    }
+
+    int n = f->nx * f->ny * f->nz;
+    fprintf(fp, "# vtk DataFile Version 3.0\n");
+    fprintf(fp, "Fluid3D output\n");
+    fprintf(fp, "ASCII\n");
+    fprintf(fp, "DATASET STRUCTURED_POINTS\n");
+    fprintf(fp, "DIMENSIONS %d %d %d\n", f->nx, f->ny, f->nz);
+    fprintf(fp, "ORIGIN 0 0 0\n");
+    fprintf(fp, "SPACING 1 1 1\n");
+    fprintf(fp, "POINT_DATA %d\n", n);
+
+    fprintf(fp, "SCALARS density float 1\n");
+    fprintf(fp, "LOOKUP_TABLE default\n");
+    for (int i = 0; i < n; ++i) {
+        fprintf(fp, "%g\n", f->density[i]);
+    }
+
+    fprintf(fp, "VECTORS velocity float\n");
+    for (int i = 0; i < n; ++i) {
+        fprintf(fp, "%g %g %g\n", f->u[i], f->v[i], f->w[i]);
+    }
+
+    fclose(fp);
+}
+
 static float density_sum(const Fluid3D *f) {
     float s = 0.0f;
     int n = f->nx * f->ny * f->nz;
@@ -275,8 +307,15 @@ int main(void) {
         if (frame % 10 == 0) {
             printf("step=%d total_density=%.3f\n", frame, density_sum(&fluid));
         }
+        if (frame % 20 == 0) {
+            char filename[64];
+            snprintf(filename, sizeof(filename), "fluid3d_%04d.vtk", frame);
+            write_vtk(&fluid, filename);
+            printf("wrote %s\n", filename);
+        }
     }
 
     free_fluid(&fluid);
     return 0;
 }
+
